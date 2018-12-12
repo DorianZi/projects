@@ -13,9 +13,11 @@ class faceDetecter():
         haar = cv2.CascadeClassifier('C:\Python27\Lib\site-packages\cv2\data\haarcascade_frontalface_default.xml')
         faces = haar.detectMultiScale(gray_img, scaleFactor = 1.15, minNeighbors = 5, minSize = (5,5),)
         print "face count:",len(faces)
+        count = 0 
         for x, y, w, h in faces:
+            count = count + 1
             cv2.rectangle(image, (x, y), (x+w, y+h), (0, 255, 0), 2)
-
+            cv2.imwrite(os.path.join(outdir,"grey_image_{0}.jpg".format(count)), gray_img[y:y + h, x:x + w])
         cv2.imshow('image', image)
         cv2.waitKey(0)
         camera.release()
@@ -24,3 +26,4 @@ class faceDetecter():
 if __name__ == '__main__':
     detecter = faceDetecter()
     detecter.getFaceFromCamera("C:\Users\dzi\Pictures")
+ 
