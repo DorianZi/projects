@@ -21,27 +21,36 @@ class faceDetecter():
     def __init__(self,owner,picDir):
         self.pic_repo = picDir
         self.owner = owner
+        self.haar = cv2.CascadeClassifier(HAAR_DIR)
         
-    def catchFacesFromCamera(self,mode="collect"):
-        camera = cv2.VideoCapture(0)
-        haar = cv2.CascadeClassifier(HAAR_DIR)
+    def catchFacesFromCamera(self,camera,mode="collect"):
         count = 0
         for n in range(30):
             success, image = camera.read()
             gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            faces = haar.detectMultiScale(gray_img, scaleFactor = 1.15, minNeighbors = 5, minSize = (5,5))
+            faces = self.haar.detectMultiScale(gray_img, scaleFactor = 1.15, minNeighbors = 5, minSize = (5,5))
             if not len(faces):
                 print "No face detected!"
             if mode == "detect":
-                return camera, image, gray_img, faces
+                return image, gray_img, faces
             for x, y, w, h in faces:
                 count = count + 1
                 cv2.rectangle(image, (x, y), (x+w, y+h), (0, 255, 0), 2)
                 cv2.imwrite(os.path.join(self.pic_repo,"train_image_{0}_{1}.jpg".format(self.owner,count)), gray_img[y:y + h, x:x + w])
             cv2.imshow('image', image)
             cv2.waitKey(0)
-        camera.release()
         #cv2.destroyAllWindows()
+
+    def catchFacesFromPicture(self,pic):
+        pic_path = pic
+        if not ("/" in pic or "\\" in pic):
+            pic_path = os.path.join(self.pic_repo,pic)
+        image = cv2.imread(pic_path)
+        gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        faces = self.haar.detectMultiScale(gray_img, scaleFactor = 1.15, minNeighbors = 5, minSize = (5,5))
+        if not len(faces):
+            print "No face detected!"
+        return image,gray_img,faces
 
     def getTrainData(self):
         self.train_X = []
@@ -67,8 +76,11 @@ class faceDetecter():
         self.model = cv2.face.LBPHFaceRecognizer_create()
         self.model.train(np.asarray(self.train_X),np.asarray(self.train_Y))
 
-    def detect(self):
-        camera, image, gray_img, faces = self.catchFacesFromCamera("detect")
+    def detect(self,source="",camera="",pic=""):
+        if source == "camera":
+            image, gray_img, faces = self.catchFacesFromCamera(camera,"detect")
+        elif source == "picture":
+            image, gray_img, faces = self.catchFacesFromPicture(pic)
         pred_dict = dict([(v,k) for k,v in self.labelDict.items()])
         for x, y, w, h in faces:
             pred = self.model.predict(gray_img[y:y + h, x:x + w])
@@ -78,7 +90,6 @@ class faceDetecter():
             cv2.putText(image,pred_name,(x,y-20),cv2.FONT_HERSHEY_SIMPLEX,1,255,2)
         cv2.imshow('image', image)
         cv2.waitKey(0)
-        camera.release()
 
 if __name__ == '__main__':
     parser = OptionParser() 
@@ -93,7 +104,11 @@ if __name__ == '__main__':
     parser.add_option("-d", "--detect", action="store_true", 
                   dest="detect", 
                   default=False, 
-                  help="detect face") 
+                  help="detect face")
+    parser.add_option("-p", "--pic",
+                  dest="pic",
+                  default="",
+                  help="picture input") 
     (options, args) = parser.parse_args() 
     if not (options.collect ^ options.detect):
         ERR_EXIT("require either --collect/-c or --detect/-d specified !")
@@ -101,11 +116,16 @@ if __name__ == '__main__':
         if not options.name:
             ERR_EXIT("require --name/-n specified!")
         detecter = faceDetecter(options.name, DATA_DIR)
-        detecter.catchFacesFromCamera()
-    if options.detect:    
+        cmr = cv2.VideoCapture(0)
+        detecter.catchFacesFromCamera(cmr)
+        cmr.release()
+    if options.detect:
         detecter = faceDetecter("", DATA_DIR)
         detecter.getTrainData()
         detecter.train()
-        detecter.detect()
-
-        
+        if options.pic:
+            detecter.detect("picture",pic=options.pic)
+        else:
+            cmr = cv2.VideoCapture(0)
+            detecter.detect("camera",camera=cmr)
+            cmr = cv2.VideoCapture(0)
