@@ -6,10 +6,16 @@ import re
 import cv2
 #need to install extra module: $pip install opencv-contrib-python
 import numpy as np
+import logging
 from optparse import OptionParser
 
 DATA_DIR = "C:\Users\dzi\Pictures"
 HAAR_DIR = "C:\Python27\Lib\site-packages\cv2\data\haarcascade_frontalface_default.xml"
+
+def ERR_EXIT(err=""):
+    if err: 
+        logging.error(err)
+    sys.exit(-1)
 
 class faceDetecter():
     def __init__(self,owner,picDir):
@@ -53,8 +59,7 @@ class faceDetecter():
                     self.labelDict[owner] = label_n 
                 file_path = os.path.join(root, filename)
                 face = cv2.imread(file_path,cv2.IMREAD_GRAYSCALE)
-                if not face.shape == (173,173):
-                    face = cv2.resize(face,(173,173))
+                face = cv2.resize(face,(173,173))
                 self.train_X.append(face)
                 self.train_Y.append(label_n)
 
@@ -90,15 +95,17 @@ if __name__ == '__main__':
                   default=False, 
                   help="detect face") 
     (options, args) = parser.parse_args() 
-
-    assert (options.collect ^ options.detect)  
+    if not (options.collect ^ options.detect):
+        ERR_EXIT("require either --collect/-c or --detect/-d specified !")
     if options.collect:
-        assert options.name
+        if not options.name:
+            ERR_EXIT("require --name/-n specified!")
         detecter = faceDetecter(options.name, DATA_DIR)
-        detecter.collectFacesFromCamera()
+        detecter.catchFacesFromCamera()
     if options.detect:    
         detecter = faceDetecter("", DATA_DIR)
         detecter.getTrainData()
         detecter.train()
         detecter.detect()
+
         
