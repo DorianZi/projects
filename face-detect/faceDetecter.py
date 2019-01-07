@@ -36,7 +36,7 @@ class faceDetecter():
             for x, y, w, h in faces:
                 count = count + 1
                 cv2.rectangle(image, (x, y), (x+w, y+h), (0, 255, 0), 2)
-                cv2.imwrite(os.path.join(self.pic_repo,"train_image_{0}_{1}.jpg".format(self.owner,count)), gray_img[y:y + h, x:x + w])
+                cv2.imwrite(os.path.join(self.pic_repo,"train_image_{0}_{1}.jpg".format(self.owner,count)), cv2.resize(gray_img[y:y + h, x:x + w],(200,200)))
             cv2.imshow('image', image)
             cv2.waitKey(0)
         #cv2.destroyAllWindows()
@@ -67,9 +67,9 @@ class faceDetecter():
                     label_n = label_n + 1
                     self.labelDict[owner] = label_n 
                 file_path = os.path.join(root, filename)
-                face = cv2.imread(file_path,cv2.IMREAD_GRAYSCALE)
-                face = cv2.resize(face,(173,173))
-                self.train_X.append(face)
+                face_img = cv2.imread(file_path,cv2.IMREAD_GRAYSCALE)
+                face_img = cv2.resize(face_img,(200,200))
+                self.train_X.append(face_img)
                 self.train_Y.append(label_n)
 
     def train(self):
@@ -83,7 +83,7 @@ class faceDetecter():
             image, gray_img, faces = self.catchFacesFromPicture(pic)
         pred_dict = dict([(v,k) for k,v in self.labelDict.items()])
         for x, y, w, h in faces:
-            pred = self.model.predict(gray_img[y:y + h, x:x + w])
+            pred = self.model.predict(cv2.resize(gray_img[y:y + h, x:x + w],(200,200)))
             pred_name = pred_dict[pred[0]]
             print pred
             cv2.rectangle(image, (x, y), (x+w, y+h), (0, 255, 0), 2)
