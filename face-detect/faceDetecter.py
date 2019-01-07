@@ -128,4 +128,4 @@ if __name__ == '__main__':
         else:
             cmr = cv2.VideoCapture(0)
             detecter.detect("camera",camera=cmr)
-            cmr = cv2.release()
+            cmr.release()
