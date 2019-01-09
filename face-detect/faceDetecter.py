@@ -4,6 +4,7 @@ import os
 import sys
 import re
 import cv2
+from sklearn.svm import SVC
 #need to install extra module: $pip install opencv-contrib-python
 import numpy as np
 import logging
@@ -71,10 +72,14 @@ class faceDetecter():
                 face_img = cv2.resize(face_img,(200,200))
                 self.train_X.append(face_img)
                 self.train_Y.append(label_n)
+        self.train_X, self.train_Y = np.asarray(self.train_X), np.asarray(self.train_Y)
 
     def train(self):
-        self.model = cv2.face.LBPHFaceRecognizer_create()
-        self.model.train(np.asarray(self.train_X),np.asarray(self.train_Y))
+        
+        #self.model = cv2.face.LBPHFaceRecognizer_create()
+        #self.model.train(np.asarray(self.train_X),np.asarray(self.train_Y))
+        self.model = SVC(C=1.0, kernel="linear", probability=True)
+        self.model.fit(self.train_X.reshape(self.train_X.shape[0],-1), self.train_Y)
 
     def detect(self,source="",camera="",pic=""):
         if source == "camera":
@@ -83,9 +88,11 @@ class faceDetecter():
             image, gray_img, faces = self.catchFacesFromPicture(pic)
         pred_dict = dict([(v,k) for k,v in self.labelDict.items()])
         for x, y, w, h in faces:
-            pred = self.model.predict(cv2.resize(gray_img[y:y + h, x:x + w],(200,200)))
+            target = cv2.resize(gray_img[y:y + h, x:x + w],(200,200)).reshape(1,-1)
+            pred = self.model.predict(target)
+            pred_proba = self.model.predict_proba(target)
             pred_name = pred_dict[pred[0]]
-            print pred
+            print pred,pred_proba
             cv2.rectangle(image, (x, y), (x+w, y+h), (0, 255, 0), 2)
             cv2.putText(image,pred_name,(x,y-20),cv2.FONT_HERSHEY_SIMPLEX,1,255,2)
         cv2.imshow('image', image)
