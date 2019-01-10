@@ -81,7 +81,7 @@ class faceDetecter():
         self.model = SVC(C=1.0, kernel="linear", probability=True)
         self.model.fit(self.train_X.reshape(self.train_X.shape[0],-1), self.train_Y)
 
-    def detect(self,source="",camera="",pic=""):
+    def detect(self,source="",camera="",pic="",video=False):
         if source == "camera":
             image, gray_img, faces = self.catchFacesFromCamera(camera,"detect")
         elif source == "picture":
@@ -90,13 +90,19 @@ class faceDetecter():
         for x, y, w, h in faces:
             target = cv2.resize(gray_img[y:y + h, x:x + w],(200,200)).reshape(1,-1)
             pred = self.model.predict(target)
-            pred_proba = self.model.predict_proba(target)
+            pred_proba = self.model.predict_proba(target)[0][pred[0]-1]
             pred_name = pred_dict[pred[0]]
+            show_text = pred_name + " %.2f%%" % (100*float(pred_proba))
             print pred,pred_proba
             cv2.rectangle(image, (x, y), (x+w, y+h), (0, 255, 0), 2)
-            cv2.putText(image,pred_name,(x,y-20),cv2.FONT_HERSHEY_SIMPLEX,1,255,2)
+            cv2.putText(image,show_text,(x,y-20),cv2.FONT_HERSHEY_SIMPLEX,1,255,2)
         cv2.imshow('image', image)
-        cv2.waitKey(0)
+        if video:
+            if not cv2.waitKey(10) == -1:
+                return False
+        else:
+            cv2.waitKey(0)
+        return True
 
 if __name__ == '__main__':
     parser = OptionParser() 
@@ -116,6 +122,10 @@ if __name__ == '__main__':
                   dest="pic",
                   default="",
                   help="picture input") 
+    parser.add_option("-v", "--video", action="store_true",
+                  dest="video",
+                  default=False,
+                  help="detect in video stream") 
     (options, args) = parser.parse_args() 
     if not (options.collect ^ options.detect):
         ERR_EXIT("require either --collect/-c or --detect/-d specified !")
@@ -134,5 +144,10 @@ if __name__ == '__main__':
             detecter.detect("picture",pic=options.pic)
         else:
             cmr = cv2.VideoCapture(0)
-            detecter.detect("camera",camera=cmr)
+            if options.video:
+                while 1:
+                    if not detecter.detect("camera",camera=cmr,video=True):
+                        break
+            else:
+                detecter.detect("camera",camera=cmr)
             cmr.release()
