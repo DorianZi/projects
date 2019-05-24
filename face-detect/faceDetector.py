@@ -96,12 +96,14 @@ class faceDetecter():
                 self.train_Y.append(label_n)
         self.train_X, self.train_Y = np.asarray(self.train_X), np.asarray(self.train_Y)
 
-    def train(self):
-        
-        #self.model = cv2.face.LBPHFaceRecognizer_create()
-        #self.model.train(np.asarray(self.train_X),np.asarray(self.train_Y))
-        self.model = SVC(C=1.0, kernel="linear", probability=True)
-        self.model.fit(self.train_X.reshape(self.train_X.shape[0],-1), self.train_Y)
+    def train(self, algorithm="SVM"):
+        self.algorithm = algorithm
+        if self.algorithm == "SVM":
+            self.model = SVC(C=1.0, kernel="linear", probability=True)
+            self.model.fit(self.train_X.reshape(self.train_X.shape[0],-1), self.train_Y)
+        if self.algorithm == "EigenFace":
+            self.model = cv2.face.EigenFaceRecognizer_create()
+            self.model.train(self.train_X, self.train_Y)
 
 
     def detect(self,source="",camera="",pic="",video=False):
@@ -111,12 +113,14 @@ class faceDetecter():
             image, gray_img, faces = self.catchFacesFromPicture(pic)
         pred_dict = dict([(v,k) for k,v in self.labelDict.items()])
         for startX, startY, endX, endY in faces:
-            target = cv2.resize(gray_img[startY:endY, startX:endX],(300,300)).reshape(1,-1)
+            target = cv2.resize(gray_img[startY:endY, startX:endX],(300,300))
+            target = target.reshape(1,-1) if self.algorithm == "SVM" else target
             pred = self.model.predict(target)
-            pred_proba = self.model.predict_proba(target)[0][pred[0]-1]
+            if self.algorithm == "SVM": 
+                pred_proba = self.model.predict_proba(target)[0][pred[0]-1]
             pred_name = pred_dict[pred[0]]
-            show_text = pred_name + " %.2f%%" % (100*float(pred_proba))
-            print pred,pred_proba
+            show_text = (pred_name + " %.2f%%" % (100*float(pred_proba))) if self.algorithm == "SVM" else pred_name
+            print (pred,pred_proba) if self.algorithm == "SVM" else pred
             cv2.rectangle(image, (startX, startY), (endX, endY), (0, 255, 0), 2)
             cv2.putText(image,show_text,(startX,startY-20),cv2.FONT_HERSHEY_SIMPLEX,1,255,2)
         cv2.imshow('image', image)
